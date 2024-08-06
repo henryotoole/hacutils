@@ -15,6 +15,8 @@ import glob
 # 0.2.0
 #	Changeover from henryotoole_utils to hacutils. This is a major change, dropping some old things
 #	and adding a great many new things.
+# 0.2.1
+#	Fix a bug with config.generate_from_defaults and fix install_requires in setup.py
 
 # Lessons from https://blog.ionelmc.ro/2014/05/25/python-packaging/
 
@@ -32,7 +34,7 @@ setup(
 	py_modules=[os.path.splitext(os.path.basename(path))[0] for path in glob.glob('src/*.py')],
 	include_package_data=True,
 	zip_safe=False,
-	requires=[
+	install_requires=[
 		"pendulum",
 		"requests",
 		"SQLAlchemy"

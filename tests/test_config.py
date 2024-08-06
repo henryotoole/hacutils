@@ -56,6 +56,9 @@ def test_generate_from_defaults():
 	with open(os.path.join(pathlib.Path(__file__).parent.resolve(), "resources", "gen_config.cfg"), 'r') as ffile:
 		assert cfg_str == ffile.read()
 
+	# Check without header
+	_generate_from_defaults(defaults, header=None)
+
 def test_defaults_apply(config_path):
 
 	cfg = load_config(config_path)
