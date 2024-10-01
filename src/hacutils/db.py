@@ -9,12 +9,28 @@
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.schema import MetaData
 
 # Base python
 from contextlib import contextmanager
 import os
 
 class Database():
+	"""The Database attempts to streamline the use of SQLAlchemy's Session. Sessions are pretty complex, and
+	warrant deep understanding (especially if optimization is required).
+
+	However, in many cases the use of the Session is straighforwards: open it, do some things, commit, and close.
+	If an exception occurs, create a rollback.
+
+	This database class should be instantiated once in a module and preferably made available to the entire
+	module as an 'env' variable (using my own vernacular here). All actions should be done in a session scope
+	block:
+	```
+	db = Database(uri)
+	with db.session_scope():
+		db.session.do_stuff()
+	```
+	"""
 
 	def __init__(self, db_uri):
 		"""Instantiate a database session/engine pair which can be used consistently to 
@@ -24,13 +40,10 @@ class Database():
 			db_uri (String): the database string like 'mysql+pymysql://root:mysql_password@localhost/dbname'
 		"""
 		self.engine = create_engine(db_uri)
-
-		self.Session = sessionmaker(bind=self.engine)
-
+		# https://docs.sqlalchemy.org/en/20/orm/session_api.html#sqlalchemy.orm.sessionmaker
+		# Used so that we can instantiate the session as a var and expose it as a property.
+		self.SessionMaker = sessionmaker(self.engine)
 		self._session = None
-		self._session_originator = None
-		self._session_originator_pid = None
-		self._memflag = None
 
 	@property
 	def session(self):
@@ -48,41 +61,22 @@ class Database():
 		return str(self.engine.url).split("/")[-1]
 
 	@contextmanager
-	def session_scope(self, originator:str=None):
-		"""Provide a session scope around a series of transactions. This scope handles errors and other problems as
-		well as ensuring a call to session.commit() is always fired at the end to close session/transaction scope.
+	def session_scope(self):
+		"""Create a new session scope. The session itself will be accessible with db.session within this scope.
+		All db-operations should be wrapped in this scope.
 
-		Be warned: If you call env.db.session.commit() within this scope, you will end the old transaction and
-		start a new one.
+		If an exception is raised, the session will be rolled back.
 
-		From the docs:
-			The Session will begin a new transaction if it is used again, subsequent to the previous transaction
-			ending from this it follows that the Session is capable of having a lifespan across many transactions,
-			though only one at a time.
+		session.commit() should not be called during this scope. flush() should be used, if addition's primary
+		keys etc. are needed mid scope.
 
-		This function yields session, which can be used. It also sets the env.db.session variable which can be
-		used in the same way.
-
-		Args:
-			originator (str, optional): If provided, remember this string as the 'originator' of this session.
-				Helpful when tracking certain problems through the system.
+		Multiple transactions will probably be used under the hood during long session scopes.
 		"""
-		if self._session is not None:
-			msg = "Cannot start a new session scope within another session scope! "
-			if self._session_originator is None:
-				msg += "Previous originator unknown. "
-			else:
-				msg += "Previous originator: '" + str(self._session_originator) + "/" +\
-					self._session_originator_pid + "'. "
-				if originator is not None:
-					msg += "Current originator: '" + str(originator) + "/" + str(os.getpid()) + "'. "
-			raise ValueError(msg)
+		self._session = self.SessionMaker()
 
-		self._session = self.Session()
-		self._session_originator = originator
-		self._session_originator_pid = str(os.getpid())
+		self._session.begin()
 		try:
-			self._session.commit()
+			# Here we return, to perhaps do a variety of things with the current session.
 			yield
 			self._session.commit()
 		except:
@@ -95,44 +89,43 @@ class Database():
 class DatabaseTesting(Database):
 	"""A 'testing' database is just a little convenience wrapping for the classic Database object. It's intended
 	to be pointed at a dedicated 'test' database which mirrors the project's real database, whatever that might
-	be. It should be given a list of all table definitions that a project uses, so that it can create a brand
-	new, clean DB for every time tests are run.
+	be. It should be given the declarative base model definition used for the module's models - 'Base' below:
+	```
+	from sqlalchemy.orm import DeclarativeBase
+	class Base(DeclarativeBase):
+		pass
+		
+	This is used to infer the table structure and create / drop tables when tests are run.
+	```
 
 	It's best to instantiate such a database 
 	"""
 
-	def __init__(self, db_uri, all_table_defs):
-		"""Instantiate a connection to the test database (which will be emptied).
-		This database will be populated with the current state of the db_models models.
+	def __init__(self, db_uri, decl_base):
+		"""Instantiate a connection to the test database. It will be emptied upon instantiation and repopulated
+		with the current models in accordance with the provided decl_base.
 
 		Args:
 			db_uri (str): The database URI
-			all_table_defs (list): A list of Model Definitions (e.g. classes that extend declarative_base) to be
-				dropped and re-added at the start of a run.
+			decl_base (DeclarativeBaseClassDef): The declarative base used for the module's models.
 		"""
 		super().__init__(db_uri)
 
-		# Regenerate all tables.
-		for tabledef in all_table_defs:
-			try:
-				print("Dropping table " + str(tabledef.__tablename__))
-				tabledef.__table__.drop(self.engine)
-			except OperationalError:
-				print("Table " + str(tabledef) + " did not exist.")
-			except:
-				inspector = inspect(self.engine)
-				table_names = inspector.get_table_names()
-				print("Exception when trying to drop table " + str(tabledef.__tablename__))
-				print("Check that an orphaned existing table is not causing this issue. Existing tables: " )
-				for t in table_names:
-					print(t)
-				raise
+		self.metadata: MetaData = decl_base.metadata
+		self.reset_all_tables()
 
-		for tabledef in reversed(all_table_defs):
-			print("Adding table " + str(tabledef.__tablename__))
-			tabledef.metadata.create_all(self.engine)
+	def drop_all_tables(self):
+		"""Drop all tables in this database as known in the decl_base that was provided to
+		DatabaseTesting on instantiation.
+		"""
+		self.metadata.drop_all(bind=self.engine)
 
-		self.all_table_defs = all_table_defs
+	def reset_all_tables(self):
+		"""Drop and then create all tables in this database as known in the decl_base that was provided to
+		DatabaseTesting on instantiation.
+		"""
+		self.metadata.drop_all(bind=self.engine)
+		self.metadata.create_all(bind=self.engine)
 
 	@contextmanager
 	def session_scope(self):
@@ -149,7 +142,7 @@ class DatabaseTesting(Database):
 		if self._session is not None:
 			raise ValueError("Cannot start a new session scope within another session scope!")
 		
-		session = self.Session()
+		session = self.SessionMaker()
 		try:
 			self._session = session
 			yield session

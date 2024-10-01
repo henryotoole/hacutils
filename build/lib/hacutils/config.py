@@ -165,10 +165,11 @@ def _generate_from_defaults(defaults: 'list[CfgEntry]', header=None) -> str:
 	"""
 	bulk_text = ""
 
-	for line in textwrap.wrap(header, 113):
-		bulk_text += f"# {line}\n"
+	if header:
+		for line in textwrap.wrap(header, 113):
+			bulk_text += f"# {line}\n"
 
-	bulk_text += "\n"
+		bulk_text += "\n"
 
 	for entry in defaults:
 

@@ -4,7 +4,8 @@
 # Tests for the database utilities
 
 # Our code
-from hacutils import Database, DatabaseTesting, mkdirs
+from hacutils.db import Database, DatabaseTesting
+from hacutils.filesys import mkdirs
 
 # Other libs
 import pytest
@@ -42,14 +43,14 @@ class ModelB(ModelSQLAlchemyBase):
 
 
 @pytest.fixture
-def db_sqlite_test():
-	path = os.path.join(pathlib.Path(__file__).parent.parent.resolve(), "dev", "db_test.db")
+def db_sqlite_test(fpath_dev):
+	path = os.path.join(fpath_dev, "db_test.db")
 	mkdirs(path)
 	return "sqlite:///" + path
 
 @pytest.fixture
-def db_sqlite_main():
-	path = os.path.join(pathlib.Path(__file__).parent.parent.resolve(), "dev", "db_main.db")
+def db_sqlite_main(fpath_dev):
+	path = os.path.join(fpath_dev, "db_main.db")
 	mkdirs(path)
 	return "sqlite:///" + path
 
@@ -89,4 +90,4 @@ def test_main_db(db_sqlite_main):
 def test_test_db(db_sqlite_test):
 
 	# Ensure the connection actually works.
-	db = DatabaseTesting(db_sqlite_test, [ModelA, ModelB])
+	db = DatabaseTesting(db_sqlite_test, ModelSQLAlchemyBase)

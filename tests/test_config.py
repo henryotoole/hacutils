@@ -2,8 +2,7 @@
 # Josh Reed 2024
 
 # Project code
-from hacutils import load_config, CfgEntry, find_config, defaults_apply
-from hacutils.config import _generate_from_defaults
+from hacutils.config import _generate_from_defaults, load_config, CfgEntry, find_config, defaults_apply
 
 # Other libs
 import pytest

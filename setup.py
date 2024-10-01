@@ -17,6 +17,12 @@ import glob
 #	and adding a great many new things.
 # 0.2.1
 #	Fix a bug with config.generate_from_defaults and fix install_requires in setup.py
+# 0.2.2
+#	Add nginx directory checks
+# 0.2.3
+#	Change nature of imports
+# 0.2.4
+#	Rework db classes
 
 # Lessons from https://blog.ionelmc.ro/2014/05/25/python-packaging/
 
@@ -24,7 +30,7 @@ setup(
 	# This is NOT the module name e.g. 'import hacutils'. This is the library name as
 	# it would appear in pip etc.
 	name='hacutils',
-	version=0.2,
+	version='0.2.4',
 	license="GNUv3",
 	description="Personal utility library. Short for Henryotoole's Ars Commoditas.",
 	author='Josh Reed (henryotoole)',
