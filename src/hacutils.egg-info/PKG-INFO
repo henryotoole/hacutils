@@ -1,16 +1,19 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: hacutils
-Version: 0.2.4
+Version: 0.2.5
 Summary: Personal utility library. Short for Henryotoole's Ars Commoditas.
-Home-page: https://github.com/henryotoole/hacutils
-Author: Josh Reed (henryotoole)
-License: GNUv3
-Platform: UNKNOWN
+Author: Josh Reed
+License-Expression: GPL-3.0-or-later
+Project-URL: Repository, https://github.com/henryotoole/hacutils
 Classifier: Operating System :: POSIX :: Linux
 Classifier: Programming Language :: Python :: 3
 Classifier: Intended Audience :: Developers
-Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
+Description-Content-Type: text/markdown
 License-File: LICENSE
+Requires-Dist: pendulum
+Requires-Dist: requests
+Requires-Dist: SQLAlchemy
+Dynamic: license-file
 
-UNKNOWN
-
+# hacutils
+Personal utility library. Short for Henryotoole's Ars Commoditas
